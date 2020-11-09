@@ -254,12 +254,17 @@ demo.bin 7524 zhangpei    6u    IPv6 0x2ba97131f70436c1      0t0      TCP *:dist
 demo.bin 7524 zhangpei    7u  KQUEUE                                      count=0, state=0xa
 ```
 
-重点关注重启中的参数，老进程的fd：
+重点关注重启中的参数，老进程的网络套接字文件描述符：
 demo.bin 7484 zhangpei    6u    IPv6 0x2ba97131f70436c1      0t0      TCP *:distinct (LISTEN)
 被替换为：
 demo.bin 7484 zhangpei    8u    IPv6 0x2ba97131f70436c1      0t0      TCP *:distinct (LISTEN)
-新进程的fd继承了老进程的fd
+新进程的打开的网络套接字文件描述符：
 demo.bin 7524 zhangpei    6u    IPv6 0x2ba97131f70436c1      0t0      TCP *:distinct (LISTEN)
 
-TODO:思考，新的连接在新老进程中都会被accept吗？待实验
-TODO: 此处存疑，lsof中的fd是不是唯一的？
+NOTE: 需要注意，每个进程中的文件描述符都是独立的，不要混淆
+
+TODO1: 思考，新的连接在新老进程中都会被accept吗？待实验
+经过测试，发现新的连接确实没有被老进程accept，但从代码层面没有理解；
+
+TODO2: 思考，为什么老的网络套接字文件描述符从原来的6变成了8？
+待研究

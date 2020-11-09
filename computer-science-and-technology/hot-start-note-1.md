@@ -188,22 +188,78 @@ FD：文件描述符，应用程序通过文件描述符识别该文件。
 ### NODE：索引节点(文件在磁盘上的标识)；
 ### NAME：打开文件的确切名称。
 
-### 例子
+## 例子
 
 以hotStart项目为例：
 
+重启前：
+
 ```
-lsof -c demo.bin
 COMMAND   PID     USER   FD     TYPE             DEVICE SIZE/OFF     NODE NAME
-demo.bin 4129 zhangpei  cwd      DIR                1,4      320 31521754 /Users/zhangpei/mine/hotstart
-demo.bin 4129 zhangpei  txt      REG                1,4  7430060 32081277 /Users/zhangpei/mine/hotstart/demo.bin
-demo.bin 4129 zhangpei  txt      REG                1,4   973872 22900055 /usr/lib/dyld
-demo.bin 4129 zhangpei    0u     CHR               16,3  0t56758      641 /dev/ttys003
-demo.bin 4129 zhangpei    1u     CHR               16,3  0t56758      641 /dev/ttys003
-demo.bin 4129 zhangpei    2u     CHR               16,3  0t56758      641 /dev/ttys003
-demo.bin 4129 zhangpei    3     PIPE 0x2ba97131f4331a01    16384          ->0x2ba97131f4331d01
-demo.bin 4129 zhangpei    4     PIPE 0x2ba97131f4331d01    16384          ->0x2ba97131f4331a01
-demo.bin 4129 zhangpei    5u    IPv6 0x2ba97131f7042581      0t0      TCP *:distinct (LISTEN)
-demo.bin 4129 zhangpei    6u  KQUEUE                                      count=0, state=0xa
+demo.bin 7484 zhangpei  cwd      DIR                1,4      320 31521754 /Users/zhangpei/mine/hotstart
+demo.bin 7484 zhangpei  txt      REG                1,4  7430060 32092172 /Users/zhangpei/mine/hotstart/demo.bin
+demo.bin 7484 zhangpei  txt      REG                1,4   973872 22900055 /usr/lib/dyld
+demo.bin 7484 zhangpei    0u     CHR               16,3  0t60598      641 /dev/ttys003
+demo.bin 7484 zhangpei    1u     CHR               16,3  0t60598      641 /dev/ttys003
+demo.bin 7484 zhangpei    2u     CHR               16,3  0t60598      641 /dev/ttys003
+demo.bin 7484 zhangpei    4     PIPE 0x2ba97131f4332cc1    16384          ->0x2ba97131f4331dc1
+demo.bin 7484 zhangpei    5     PIPE 0x2ba97131f4331dc1    16384          ->0x2ba97131f4332cc1
+demo.bin 7484 zhangpei    6u    IPv6 0x2ba97131f70436c1      0t0      TCP *:distinct (LISTEN)
+demo.bin 7484 zhangpei    7u  KQUEUE                                      count=0, state=0xa
 ```
 
+使用curl 127.0.0.1:9999/hello发送一个20s的请求
+使用kill -SIGUSR2 7195信号中断进程
+重启过程中：
+
+```
+COMMAND   PID     USER   FD     TYPE             DEVICE SIZE/OFF     NODE NAME
+demo.bin 7484 zhangpei  cwd      DIR                1,4      320 31521754 /Users/zhangpei/mine/hotstart
+demo.bin 7484 zhangpei  txt      REG                1,4  7430060 32092172 /Users/zhangpei/mine/hotstart/demo.bin
+demo.bin 7484 zhangpei  txt      REG                1,4   973872 22900055 /usr/lib/dyld
+demo.bin 7484 zhangpei    0u     CHR               16,3  0t61117      641 /dev/ttys003
+demo.bin 7484 zhangpei    1u     CHR               16,3  0t61117      641 /dev/ttys003
+demo.bin 7484 zhangpei    2u     CHR               16,3  0t61117      641 /dev/ttys003
+demo.bin 7484 zhangpei    3u    IPv6 0x2ba97131f7043101      0t0      TCP localhost:distinct->localhost:56744 (ESTABLISHED)
+demo.bin 7484 zhangpei    4     PIPE 0x2ba97131f4332cc1    16384          ->0x2ba97131f4331dc1
+demo.bin 7484 zhangpei    5     PIPE 0x2ba97131f4331dc1    16384          ->0x2ba97131f4332cc1
+demo.bin 7484 zhangpei    7u  KQUEUE                                      count=0, state=0xa
+demo.bin 7484 zhangpei    8u    IPv6 0x2ba97131f70436c1      0t0      TCP *:distinct (LISTEN)
+demo.bin 7524 zhangpei  cwd      DIR                1,4      320 31521754 /Users/zhangpei/mine/hotstart
+demo.bin 7524 zhangpei  txt      REG                1,4  7430060 32092172 /Users/zhangpei/mine/hotstart/demo.bin
+demo.bin 7524 zhangpei  txt      REG                1,4   973872 22900055 /usr/lib/dyld
+demo.bin 7524 zhangpei    0u     CHR               16,3  0t61117      641 /dev/ttys003
+demo.bin 7524 zhangpei    1u     CHR               16,3  0t61117      641 /dev/ttys003
+demo.bin 7524 zhangpei    2u     CHR               16,3  0t61117      641 /dev/ttys003
+demo.bin 7524 zhangpei    4     PIPE 0x2ba97131f4330f81    16384          ->0x2ba97131f4331b81
+demo.bin 7524 zhangpei    5     PIPE 0x2ba97131f4331b81    16384          ->0x2ba97131f4330f81
+demo.bin 7524 zhangpei    6u    IPv6 0x2ba97131f70436c1      0t0      TCP *:distinct (LISTEN)
+demo.bin 7524 zhangpei    7u  KQUEUE                                      count=0, state=0xa
+```
+
+127.0.0.1:9999/hello返回，原有进程终止
+重启后：
+
+```
+COMMAND   PID     USER   FD     TYPE             DEVICE SIZE/OFF     NODE NAME
+demo.bin 7524 zhangpei  cwd      DIR                1,4      320 31521754 /Users/zhangpei/mine/hotstart
+demo.bin 7524 zhangpei  txt      REG                1,4  7430060 32092172 /Users/zhangpei/mine/hotstart/demo.bin
+demo.bin 7524 zhangpei  txt      REG                1,4   973872 22900055 /usr/lib/dyld
+demo.bin 7524 zhangpei    0u     CHR               16,3  0t61311      641 /dev/ttys003
+demo.bin 7524 zhangpei    1u     CHR               16,3  0t61311      641 /dev/ttys003
+demo.bin 7524 zhangpei    2u     CHR               16,3  0t61311      641 /dev/ttys003
+demo.bin 7524 zhangpei    4     PIPE 0x2ba97131f4330f81    16384          ->0x2ba97131f4331b81
+demo.bin 7524 zhangpei    5     PIPE 0x2ba97131f4331b81    16384          ->0x2ba97131f4330f81
+demo.bin 7524 zhangpei    6u    IPv6 0x2ba97131f70436c1      0t0      TCP *:distinct (LISTEN)
+demo.bin 7524 zhangpei    7u  KQUEUE                                      count=0, state=0xa
+```
+
+重点关注重启中的参数，老进程的fd：
+demo.bin 7484 zhangpei    6u    IPv6 0x2ba97131f70436c1      0t0      TCP *:distinct (LISTEN)
+被替换为：
+demo.bin 7484 zhangpei    8u    IPv6 0x2ba97131f70436c1      0t0      TCP *:distinct (LISTEN)
+新进程的fd继承了老进程的fd
+demo.bin 7524 zhangpei    6u    IPv6 0x2ba97131f70436c1      0t0      TCP *:distinct (LISTEN)
+
+TODO:思考，新的连接在新老进程中都会被accept吗？待实验
+TODO: 此处存疑，lsof中的fd是不是唯一的？

@@ -263,10 +263,193 @@ demo.bin 7524 zhangpei    6u    IPv6 0x2ba97131f70436c1      0t0      TCP *:dist
 
 NOTE: 需要注意，每个进程中的文件描述符都是独立的，不要混淆
 
-TODO1: 思考，新的连接在新老进程中都会被accept吗？待实验
-经过测试，发现新的连接确实没有被老进程accept，但从代码层面没有理解；
+### TODO1: 思考，新的连接在新老进程中都会被accept吗？
 
-TODO2: 思考，为什么老的网络套接字文件描述符从原来的6变成了8？
-待研究
+经过测试，发现新的连接确实没有被老进程accept:
+原因，Shutdown设置了DoneChan的信号，老进程Serve()退出不再Accept新的连接
 
-TODO3: 子进程如何继承父进程的fd？
+```go
+// Serve accepts incoming connections on the Listener l, creating a
+// new service goroutine for each. The service goroutines read requests and
+// then call srv.Handler to reply to them.
+//
+// HTTP/2 support is only enabled if the Listener returns *tls.Conn
+// connections and they were configured with "h2" in the TLS
+// Config.NextProtos.
+//
+// Serve always returns a non-nil error and closes l.
+// After Shutdown or Close, the returned error is ErrServerClosed.
+func (srv *Server) Serve(l net.Listener) error {
+	// ...
+	for {
+		rw, e := l.Accept()
+		if e != nil {
+			select {
+			case <-srv.getDoneChan():
+				return ErrServerClosed
+			default:
+			}
+		}
+		// ...
+	}
+}
+```
+
+### TODO2: 思考，为什么老的网络套接字文件描述符从原来的6变成了8？
+
+参考代码：
+
+```go
+// start new process to handle HTTP Connection
+func (srv *HotServer) fork() (err error) {
+	listener, err := srv.getTCPListenerFile()
+	if err != nil {
+		return fmt.Errorf("failed to get socket file descriptor: %v", err)
+	}
+
+	// set hotstart restart env flag
+	env := append(
+		os.Environ(),
+		"HOT_CONTINUE=1",
+	)
+
+	execSpec := &syscall.ProcAttr{
+		Env:   env,
+		Files: []uintptr{os.Stdin.Fd(), os.Stdout.Fd(), os.Stderr.Fd(), listener.Fd()},
+	}
+
+	srv.logf("HotServer do fork")
+	_, err = syscall.ForkExec(os.Args[0], os.Args, execSpec)
+	if err != nil {
+		_ = listener.Close()
+		return fmt.Errorf("Restart: Failed to launch, error: %v", err)
+	}
+
+	return
+}
+
+func (srv *HotServer) getTCPListenerFile() (*os.File, error) {
+	file, err := srv.listener.(*net.TCPListener).File()
+	if err != nil {
+		return file, err
+	}
+	return file, nil
+}
+
+// File returns a copy of the underlying os.File.
+// It is the caller's responsibility to close f when finished.
+// Closing l does not affect f, and closing f does not affect l.
+//
+// The returned os.File's file descriptor is different from the
+// connection's. Attempting to change properties of the original
+// using this duplicate may or may not have the desired effect.
+func (l *TCPListener) File() (f *os.File, err error) {
+	if !l.ok() {
+		return nil, syscall.EINVAL
+	}
+	f, err = l.file()
+	if err != nil {
+		return nil, &OpError{Op: "file", Net: l.fd.net, Source: nil, Addr: l.fd.laddr, Err: err}
+	}
+	return
+}
+```
+
+getTCPListenerFile返回了原来listener文件描述符的拷贝
+所以会观察到这个现象：
+即原来的老的listener文件描述符在Shutdown中已经关闭了，但是拷贝的listener文件描述符仍然存在
+
+### TODO3: 子进程如何继承父进程的fd？
+
+> https://juejin.im/post/6844903956431241230
+
+所以在exec后fd会被系统关闭，但是我们可以直接通过os.Command来实现。
+这里有些人可能有点疑惑了不是FD_CLOEXEC标志的设置，新起的子进程继承的fd会被关闭。
+事实是os.Command启动的子进程可以继承父进程的fd并且使用, 阅读源码我们可以知道os.Command中通过Stdout,Stdin,Stderr以及ExtraFiles 传递的描述符默认会被Golang清除FD_CLOEXEC标志,
+通过Start方法追溯进去我们可以确认我们的想法。
+
+```go
+// dup2(i, i) won't clear close-on-exec flag on Linux,
+// probably not elsewhere either.
+_, _, err1 = rawSyscall(funcPC(libc_fcntl_trampoline), uintptr(fd[i]), F_SETFD, 0)
+if err1 != 0 {
+	goto childerror
+}
+
+```
+
+对比HotStart的源码
+
+```go
+// start new process to handle HTTP Connection
+func (srv *HotServer) fork() (err error) {
+	listener, err := srv.getTCPListenerFile()
+	if err != nil {
+		return fmt.Errorf("failed to get socket file descriptor: %v", err)
+	}
+
+	// set hotstart restart env flag
+	env := append(
+		os.Environ(),
+		"HOT_CONTINUE=1",
+	)
+
+	execSpec := &syscall.ProcAttr{
+		Env:   env,
+		Files: []uintptr{os.Stdin.Fd(), os.Stdout.Fd(), os.Stderr.Fd(), listener.Fd()},
+	}
+
+	srv.logf("HotServer do fork")
+	_, err = syscall.ForkExec(os.Args[0], os.Args, execSpec)
+	if err != nil {
+		_ = listener.Close()
+		return fmt.Errorf("Restart: Failed to launch, error: %v", err)
+	}
+
+	return
+}
+
+func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
+	// ...
+
+	// guard against side effects of shuffling fds below.
+	// Make sure that nextfd is beyond any currently open files so
+	// that we can't run the risk of overwriting any of them.
+	fd := make([]int, len(attr.Files))
+	nextfd = len(attr.Files)
+	for i, ufd := range attr.Files {
+		if nextfd < int(ufd) {
+			nextfd = int(ufd)
+		}
+		fd[i] = int(ufd)
+	}
+	nextfd++
+
+	// ... 
+
+	// Pass 2: dup fd[i] down onto i.
+	for i = 0; i < len(fd); i++ {
+		if fd[i] == -1 {
+			rawSyscall(funcPC(libc_close_trampoline), uintptr(i), 0, 0)
+			continue
+		}
+		if fd[i] == int(i) {
+			// dup2(i, i) won't clear close-on-exec flag on Linux,
+			// probably not elsewhere either.
+			_, _, err1 = rawSyscall(funcPC(libc_fcntl_trampoline), uintptr(fd[i]), F_SETFD, 0)
+			if err1 != 0 {
+				goto childerror
+			}
+			continue
+		}
+		// The new fd is created NOT close-on-exec,
+		// which is exactly what we want.
+		_, _, err1 = rawSyscall(funcPC(libc_dup2_trampoline), uintptr(fd[i]), uintptr(i), 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	// ... 
+}
+```

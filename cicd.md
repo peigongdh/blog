@@ -217,3 +217,8 @@ curl 'http://127.0.0.1:30795/api/user/list' \
   -H 'Accept-Language: zh-CN,zh;q=0.9,en;q=0.8' \
   --compressed \
   --insecure
+
+
+## 学习心得
+
+如果要让jenkins能够访问k8s的机器，需要加入同一个安全组

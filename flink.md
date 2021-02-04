@@ -43,3 +43,9 @@ Or, if you don't want/need a background service you can just run:
 
 > https://colobu.com/2019/09/27/install-Kafka-on-Mac/
 
+## prometheus
+
+/usr/local/bin/prometheus --config.file=/usr/local/etc/prometheus.yml
+
+安装prometheus-gateway
+> https://cloud.tencent.com/developer/article/1690610

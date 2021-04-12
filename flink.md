@@ -26,6 +26,8 @@ mvn archetype:generate \
 mvn exec:java -Dexec.mainClass=spendreport.FraudDetectionJob
 ```
 
+./bin/start-cluster.sh
+
 ## kafka
 
 mac安装kafka
@@ -43,9 +45,26 @@ Or, if you don't want/need a background service you can just run:
 
 > https://colobu.com/2019/09/27/install-Kafka-on-Mac/
 
+启动异常参考：
+
+> https://blog.csdn.net/ASN_forever/article/details/104872917
+
+```
+zookeeper-server-start /usr/local/etc/kafka/zookeeper.properties & kafka-server-start /usr/local/etc/kafka/server.properties
+zkServer start
+kafka-server-start /usr/local/etc/kafka/server.properties
+kafka-console-producer --broker-list localhost:9092 --topic test-flink
+kafka-console-consumer --bootstrap-server localhost:9092 --topic test-flink --from-beginning
+```
+
 ## prometheus
 
+```
 /usr/local/bin/prometheus --config.file=/usr/local/etc/prometheus.yml
+cd pushgateway-1.4.0.darwin-amd64
+./pushgateway
+```
+
 
 安装prometheus-gateway
 > https://cloud.tencent.com/developer/article/1690610

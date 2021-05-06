@@ -53,8 +53,8 @@ Or, if you don't want/need a background service you can just run:
 zookeeper-server-start /usr/local/etc/kafka/zookeeper.properties & kafka-server-start /usr/local/etc/kafka/server.properties
 zkServer start
 kafka-server-start /usr/local/etc/kafka/server.properties
-kafka-console-producer --broker-list localhost:9092 --topic test-flink
-kafka-console-consumer --bootstrap-server localhost:9092 --topic test-flink --from-beginning
+kafka-console-producer --broker-list localhost:9092 --topic test-flink-1
+kafka-console-consumer --bootstrap-server localhost:9092 --topic test-flink-1 --from-beginning
 ```
 
 ## prometheus

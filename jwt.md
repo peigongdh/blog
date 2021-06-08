@@ -1,6 +1,6 @@
-> http://www.ruanyifeng.com/blog/2018/07/json_web_token-tutorial.html
-
 ## 跨域认证的问题
+
+> http://www.ruanyifeng.com/blog/2018/07/json_web_token-tutorial.html
 
 互联网服务离不开用户认证。一般流程是下面这样。
 

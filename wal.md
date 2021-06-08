@@ -1,6 +1,6 @@
-> https://zhuanlan.zhihu.com/p/137512843
-
 ## WAL(Write Ahead Log)预写日志
+
+> https://zhuanlan.zhihu.com/p/137512843
 
 WAL是数据库系统中常见的一种手段，用于保证数据操作的原子性和持久性。
 

@@ -1,4 +1,4 @@
-## consistent hashing
+## 一致哈希
 
 > https://www.youtube.com/watch?v=lm6Zeo3tqK4
 
